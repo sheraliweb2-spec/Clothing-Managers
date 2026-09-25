@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#F5C518">
+<title>Clothing Manager</title>
+<style>
+:root{--paper:#F6F7F4;--ink:#1B2A41;--tape:#F5C518;--line:#D9DDE3;--muted:#5B6678;--danger:#B3261E;--card:#fff}
+@media (prefers-color-scheme:dark){:root{--paper:#111823;--ink:#EAEFF7;--line:#2A3547;--muted:#9AA6B8;--card:#182131;--danger:#FF8A80}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--paper);color:var(--ink)}
+header{background:var(--tape);color:#1B2A41;padding:16px 16px 26px;position:relative}
+header h1{margin:0;font-size:1.35rem}
+header::after{content:"";position:absolute;left:0;right:0;bottom:0;height:10px;background:repeating-linear-gradient(90deg,#1B2A41 0 2px,transparent 2px 12px)}
+main{max-width:640px;margin:0 auto;padding:16px 16px 100px}
+input,select,textarea,button{font:inherit;color:inherit}
+input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.btn{padding:12px 16px;border:0;border-radius:8px;background:var(--ink);color:var(--paper);font-weight:600;cursor:pointer}
+.btn.alt{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.dng{color:var(--danger)}
+.bar{display:flex;gap:8px;margin-bottom:12px}
+ul{list-style:none;margin:0;padding:0}
+li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px;margin-bottom:8px;background:var(--card);border:1px solid var(--line);border-radius:8px;cursor:pointer}
+li small{display:block;color:var(--muted)}
+li.empty{justify-content:center;color:var(--muted);cursor:default}
+.del{background:none;border:0;color:var(--danger);padding:8px;cursor:pointer}
+label{display:block;margin-bottom:12px;font-weight:600}
+label input,label select{margin-top:4px;font-weight:400}
+h2{font-size:1.05rem;margin:20px 0 8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.chip{padding:8px 14px;border:1px solid var(--line);border-radius:999px;background:var(--card);cursor:pointer}
+.chip.on{background:var(--tape);border-color:var(--tape);color:#1B2A41;font-weight:600}
+.g2,#fields{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.row .btn{flex:1;min-width:110px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px}
+.stats div{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:.8rem;color:var(--muted)}
+.stats b{display:block;font-size:1.2rem;color:var(--ink)}
+.tag{font-size:.75rem;padding:2px 8px;border-radius:999px;background:var(--line);margin-left:6px}
+.tag.Pending{background:#FCE8B2;color:#5A4300}
+.tag.Ready{background:#CDEBD3;color:#14532D}
+.amt{text-align:right}
+.due{color:var(--danger);font-weight:600}
+.ok{color:#1E7B3A;font-weight:600}
+.pay{display:block;margin:4px 0 0 auto;background:none;border:1px solid var(--line);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:.8rem}
+.mv{color:var(--muted);margin:0 0 12px;font-size:.9rem}
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav button{flex:1;padding:14px 4px;border:0;border-top:3px solid transparent;background:none;cursor:pointer;font-weight:600;color:var(--muted)}
+nav button.on{color:var(--ink);border-top-color:var(--tape)}
+</style>
+</head>
+
+<body>
+
+<header><h1 id="title">Clothing Manager</h1></header>
+
+<main>
+
+<section id="home">
+<div class="stats" id="stats"></div>
+<h2>Upcoming deliveries</h2>
+<ul id="soon"></ul>
+</section>
+
+<section id="customers" hidden>
+<div class="bar">
+<input id="q" type="search" placeholder="Search by name or phone" aria-label="Search">
+<button class="btn" id="cadd">+ Customer</button>
+</div>
+<ul id="clist"></ul>
+</section>
+
+<section id="orders" hidden>
+<div class="bar">
+<button class="btn" id="oadd">+ New Order</button>
+</div>
+<div class="chips" id="ochips"></div>
+<ul id="olist"></ul>
+</section>
+
+<section id="backup" hidden>
+
+<label>
+Shop name (will appear on the bill)
+<input id="shop">
+</label>
+
+<h2>Data Backup</h2>
+
+<p class="mv">
+Your data is stored only in this phone's browser.
+Copy the backup and save it in WhatsApp or Notes.
+</p>
+
+<textarea id="bdata" rows="6" placeholder="Paste backup here to restore"></textarea>
+
+<div class="row">
+<button class="btn" id="bcopy">Copy Backup</button>
+<button class="btn alt" id="brest">Restore</button>
+</div>
+
+</section>
+
+<section id="cform" hidden>
+
+<label>
+Name *
+<input id="cname" autocomplete="off">
+</label>
+
+<label>
+Phone
+<input id="cphone" type="tel">
+</label>
+
+<label>
+Address
+<input id="caddr">
+</label>
+
+<h2>Measurements (in inches)</h2>
+
+<div class="chips" id="chips"></div>
+<div id="fields"></div>
+
+<div class="row">
+<button class="btn alt" id="ccancel">Back</button>
+<button class="btn" id="csave">Save</button>
+</div>
+
+</section>
+
+<section id="oform" hidden>
+
+<label>
+Customer
+<select id="ocust"></select>
+</label>
+
+<div class="g2">
+
+<label>
+Garment
+<select id="ogar"></select>
+</label>
+
+<label>
+Quantity
+<input id="oqty" type="number" min="1" inputmode="numeric">
+</label>
+
+</div>
+
+<p class="mv" id="mview"></p>
+
+<label>
+Cloth / design details
+<input id="onote" placeholder="e.g. blue cotton, collar design">
+</label>
+
+<div class="g2">
+
+<label>
+Total price (₹)
+<input id="ototal" inputmode="decimal">
+</label>
+
+<label>
+Advance / Received (₹)
+<input id="opaid" inputmode="decimal">
+</label>
+
+</div>
+
+<div class="g2">
+
+<label>
+Delivery date
+<input id="odue" type="date">
+</label>
+
+<label>
+Status
+<select id="ostat"></select>
+</label>
+
+</div>
+
+<div class="row">
+<button class="btn alt" id="ocancel">Back</button>
+<button class="btn" id="osave">Save</button>
+</div>
+
+<div class="row" id="oextra">
+<button class="btn alt" id="obill">WhatsApp Bill</button>
+<button class="btn alt dng" id="odel">Delete Order</button>
+</div>
+
+</section>
+
+</main>
+
+<nav>
+<button data-t="home" class="on">Home</button>
+<button data-t="customers">Customers</button>
+<button data-t="orders">Orders</button>
+<button data-t="backup">Backup</button>
+</nav>
+
+<script>
+
+const G = {
+  Shirt: ['Length','Chest','Waist','Shoulder','Sleeve','Neck'],
+  Pant: ['Length','Waist','Hip','Thigh','Bottom'],
+  Kurta: ['Length','Chest','Waist','Shoulder','Sleeve','Hip'],
+  Blouse: ['Length','Chest','Waist','Shoulder','Sleeve','Neck']
+};
+
+const ST = ['Pending','Ready','Delivered'];
+
+const $ = s => document.querySelector(s);
+
+const $$ = s => [...document.querySelectorAll(s)];
+
+const esc = s => String(s).replace(/[&<>"']/g, c => ({
+'&':'&amp;',
+'<':'&lt;',
+'>':'&gt;',
+'"':'&quot;',
+"'":'&#39;'
+}[c]));
+
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+const num = v => parseFloat(v) || 0;
+
+const rs = n => '₹' + (Math.round(n * 100) / 100).toLocaleString('en-IN');
+
+const ymd = d => {
+const z = n => String(n).padStart(2, '0');
+return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate());
+};
+
+const today = () => ymd(new Date());
+
+let db = { shop: '', customers: [], orders: [] };
+
+try {
+const r = localStorage.getItem('kapda_db');
+if (r) db = JSON.parse(r);
+else {
+const o = localStorage.getItem('customers');
+if (o) db.customers = JSON.parse(o);
+}
+} catch (e) {}
+
+const save = () => {
+try {
+localStorage.setItem('kapda_db', JSON.stringify(db));
+} catch (e) {}
+};
+
+const cust = id => db.customers.find(c => c.id === id);
+
+const bal = o => num(o.total) - num(o.paid);
+
+let tab = 'home',
+cedit = null,
+oedit = null,
+garment = 'Shirt',
+vals = {},
+ofil = 'All';
+
+function view(v, t) {
+
+$$('main > section').forEach(s => s.hidden = s.id !== v);
+
+tab = t;
+
+$$('nav button').forEach(b =>
+b.classList.toggle('on', b.dataset.t === tab)
+);
+
+$('#title').textContent = db.shop || 'Clothing Manager';
+
+window.scrollTo(0, 0);
+}
+
+const R = {
+home: renderHome,
+customers: renderCustomers,
+orders: renderOrders,
+backup: () => {
+$('#shop').value = db.shop || '';
+}
+};
+
+function go(n) {
+R[n]();
+view(n, n);
+}
+
+$$('nav button').forEach(b =>
+b.onclick = () => go(b.dataset.t)
+);
+
+/* ---------- Home ---------- */
+
+function orderRow(o) {
+
+const c = cust(o.cid),
+b = bal(o);
+
+const late =
+o.status !== 'Delivered' &&
+o.due &&
+o.due < today();
+
+return `<li data-o="${esc(o.id)}">
+<div>
+<b>${esc(c ? c.name : '(customer not found)')}</b>
+<span class="tag ${esc(o.status)}">${esc(o.status)}</span>
+
+<small>
+${esc(o.garment)}
+${o.qty > 1 ? ' x' + o.qty : ''}
+${o.due ? ' - delivery ' + esc(o.due) : ''}
+${late ? ' (late)' : ''}
+</small>
+
+</div>
+
+<div class="amt">
+${b > 0
+? '<span class="due">Remaining ' + rs(b) + '</span>'
+: '<span class="ok">Paid</span>'}
+
+<button class="pay" data-pay="${esc(o.id)}">
++ Payment
+</button>
+
+</div>
+</li>`;
+}
+
+function renderHome() {
+
+const open =
+db.orders.filter(o => o.status !== 'Delivered');
+
+const t = today();
+
+const late =
+open.filter(o => o.due && o.due <= t).length;
+
+const baki =
+db.orders.reduce((s, o) =>
+s + Math.max(0, bal(o)), 0);
+
+$('#stats').innerHTML =
+`<div><b>${open.length}</b>Pending orders</div>
+<div><b>${late}</b>Today or late</div>
+<div><b>${rs(baki)}</b>Total remaining</div>`;
+
+const soon =
+open.slice()
+.sort((a, b) =>
+(a.due || '9') > (b.due || '9') ? 1 : -1)
+.slice(0, 6);
+
+$('#soon').innerHTML =
+soon.length
+? soon.map(orderRow).join('')
+: '<li class="empty">No pending orders.</li>';
+}
+
+/* ---------- Customers ---------- */
+
+function renderCustomers() {
+
+const q = $('#q').value.trim().toLowerCase();
+
+const rows =
+db.customers.filter(c =>
+c.name.toLowerCase().includes(q) ||
+(c.phone || '').includes(q));
+
+$('#clist').innerHTML =
+rows.length
+? rows.map(c => {
+
+const n =
+db.orders.filter(o => o.cid === c.id).length;
+
+return `<li data-c="${esc(c.id)}">
+<div>
+<b>${esc(c.name)}</b>
+<small>
+${esc(c.phone || '')}
+${n ? '- ' + n + ' order(s)' : ''}
+</small>
+</div>
+
+<button class="del">Delete</button>
+</li>`;
+
+}).join('')
+
+: '<li class="empty">No customers yet. Click "+ Customer".</li>';
+}
+
+function collect() {
+
+$$('#fields input').forEach(i => {
+
+(vals[garment] = vals[garment] || {})
+[i.dataset.f] = i.value.trim();
+
+});
+}
+
+function renderFields() {
+
+$('#chips').innerHTML =
+Object.keys(G).map(g =>
+`<button type="button"
+class="chip${g === garment ? ' on' : ''}"
+data-g="${g}">
+${g}
+</button>`
+).join('');
+
+$('#fields').innerHTML =
+G[garment].map(f =>
+`<label>
+${f} (in)
+<input inputmode="decimal"
+data-f="${f}"
+value="${esc((vals[garment] || {})[f] || '')}">
+</label>`
+).join('');
+}
+
+function openCust(c) {
+
+cedit = c ? c.id : null;
+
+vals =
+c ? JSON.parse(JSON.stringify(c.m || {})) : {};
+
+garment = 'Shirt';
+
+$('#cname').value = c ? c.name : '';
+$('#cphone').value = c ? c.phone : '';
+$('#caddr').value = c ? c.address : '';
+
+renderFields();
+
+view('cform', 'customers');
+}
+
+$('#q').oninput = renderCustomers;
+
+$('#cadd').onclick = () => openCust(null);
+
+$('#ccancel').onclick = () => go('customers');
+
+$('#chips').onclick = e => {
+
+const g = e.target.dataset.g;
+
+if (!g) return;
+
+collect();
+
+garment = g;
+
+renderFields();
+};
+
+$('#clist').onclick = e => {
+
+const li = e.target.closest('li[data-c]');
+
+if (!li) return;
+
+const c = cust(li.dataset.c);
+
+if (e.target.classList.contains('del')) {
+
+if (confirm(
+'Delete ' + c.name +
+' and all of this customer\'s orders?'
+)) {
+
+db.customers =
+db.customers.filter(x => x.id !== c.id);
+
+db.orders =
+db.orders.filter(o => o.cid !== c.id);
+
+save();
+
+go('customers');
+}
+
+} else {
+
+openCust(c);
+
+}
+};
+
+$('#csave').onclick = () => {
+
+const name = $('#cname').value.trim();
+
+if (!name) {
+
+alert('Name is required.');
+
+$('#cname').focus();
+
+return;
+}
+
+collect();
+
+const m = {};
+
+for (const g in vals) {
+
+const clean = {};
+
+for (const f in vals[g])
+if (vals[g][f])
+clean[f] = vals[g][f];
+
+if (Object.keys(clean).length)
+m[g] = clean;
+}
+
+const c = {
+id: cedit || uid(),
+name,
+phone: $('#cphone').value.trim(),
+address: $('#caddr').value.trim(),
+m
+};
+
+const i =
+db.customers.findIndex(x => x.id === c.id);
+
+if (i >= 0)
+db.customers[i] = c;
+else
+db.customers.unshift(c);
+
+save();
+
+go('customers');
+};
+
+/* ---------- Orders ---------- */
+
+function renderOrders() {
+
+$('#ochips').innerHTML =
+['All', ...ST].map(s =>
+`<button class="chip${s === ofil ? ' on' : ''}"
+data-s="${s}">
+${s}
+</button>`
+).join('');
+
+const rows =
+db.orders.filter(o =>
+ofil === 'All' || o.status === ofil);
+
+$('#olist').innerHTML =
+rows.length
+? rows.map(orderRow).join('')
+: '<li class="empty">No orders.</li>';
+}
+
+$('#ochips').onclick = e => {
+
+const s = e.target.dataset.s;
+
+if (s) {
+
+ofil = s;
+
+renderOrders();
+
+}
+};
+
+function addPay(id) {
+
+const o =
+db.orders.find(x => x.id === id);
+
+const a =
+num(prompt('How much payment was received? (₹)'));
+
+if (o && a > 0) {
+
+o.paid = num(o.paid) + a;
+
+save();
+
+go(tab);
+}
+}
+
+function rowClick(e) {
+
+const p = e.target.dataset.pay;
+
+if (p)
+return addPay(p);
+
+const li =
+e.target.closest('li[data-o]');
+
+if (li)
+openOrder(
+db.orders.find(o => o.id === li.dataset.o)
+);
+}
+
+$('#olist').onclick = rowClick;
+
+$('#soon').onclick = rowClick;
+
+$('#ogar').innerHTML =
+Object.keys(G)
+.map(g => `<option>${g}</option>`)
+.join('');
+
+$('#ostat').innerHTML =
+ST.map(s => `<option>${s}</option>`)
+.join('');
+
+function mview() {
+
+const c = cust($('#ocust').value);
+
+const m =
+c &&
+c.m &&
+c.m[$('#ogar').value];
+
+$('#mview').textContent =
+m
+? 'Measurements: ' +
+Object.entries(m)
+.map(([k, v]) => k + ' ' + v)
+.join(', ')
+: 'No measurements saved for this garment.';
+}
+
+$('#ocust').onchange = mview;
+
+$('#ogar').onchange = mview;
+
+function openOrder(o) {
+
+if (!db.customers.length) {
+
+alert('Please add a customer first.');
+
+return go('customers');
+}
+
+oedit = o ? o.id : null;
+
+$('#ocust').innerHTML =
+db.customers.map(c =>
+`<option value="${esc(c.id)}">
+${esc(c.name)}
+</option>`
+).join('');
+
+$('#ocust').value =
+o ? o.cid : db.customers[0].id;
+
+$('#ogar').value =
+o ? o.garment : 'Shirt';
+
+$('#oqty').value =
+o ? o.qty : 1;
+
+$('#onote').value =
+o ? o.note : '';
+
+$('#ototal').value =
+o ? o.total : '';
+
+$('#opaid').value =
+o ? o.paid : '';
+
+$('#odue').value =
+o ? o.due : '';
+
+$('#ostat').value =
+o ? o.status : 'Pending';
+
+$('#oextra').hidden = !o;
+
+mview();
+
+view('oform', 'orders');
+}
+
+$('#oadd').onclick = () => openOrder(null);
+
+$('#ocancel').onclick = () => go('orders');
+
+$('#osave').onclick = () => {
+
+const cur =
+db.orders.find(x => x.id === oedit);
+
+const o = {
+
+id: oedit || uid(),
+
+cid: $('#ocust').value,
+
+garment: $('#ogar').value,
+
+qty:
+Math.max(
+1,
+parseInt($('#oqty').value) || 1
+),
+
+note:
+$('#onote').value.trim(),
+
+total:
+num($('#ototal').value),
+
+paid:
+num($('#opaid').value),
+
+due:
+$('#odue').value,
+
+status:
+$('#ostat').value,
+
+created:
+cur ? cur.created : today()
+
+};
+
+const i =
+db.orders.findIndex(x => x.id === o.id);
+
+if (i >= 0)
+db.orders[i] = o;
+else
+db.orders.unshift(o);
+
+save();
+
+go('orders');
+};
+
+$('#odel').onclick = () => {
+
+if (confirm('Delete this order?')) {
+
+db.orders =
+db.orders.filter(x => x.id !== oedit);
+
+save();
+
+go('orders');
+
+}
+};
+
+$('#obill').onclick = () => {
+
+const o =
+db.orders.find(x => x.id === oedit);
+
+const c =
+o && cust(o.cid);
+
+if (!o || !c) return;
+
+const t = [
+
+'*' + (db.shop || 'Clothing Manager') + '*',
+
+'Bill / Receipt',
+
+'Customer: ' + c.name,
+
+o.garment + ' x ' + o.qty +
+(o.note ? ' (' + o.note + ')' : ''),
+
+'Total: ' + rs(o.total),
+
+'Received: ' + rs(o.paid),
+
+'Remaining: ' + rs(bal(o)),
+
+o.due ? 'Delivery: ' + o.due : '',
+
+'Status: ' + o.status,
+
+'Thank you!'
+
+].filter(Boolean).join('\n');
+
+let p =
+(c.phone || '').replace(/\D/g, '');
+
+if (p.length === 10)
+p = '91' + p;
+
+window.open(
+'https://wa.me/' +
+p +
+'?text=' +
+encodeURIComponent(t),
+'_blank'
+);
+};
+
+/* ---------- Backup ---------- */
+
+$('#shop').oninput = e => {
+
+db.shop = e.target.value;
+
+save();
+
+$('#title').textContent =
+db.shop || 'Clothing Manager';
+};
+
+$('#bcopy').onclick = async () => {
+
+const s = JSON.stringify(db);
+
+$('#bdata').value = s;
+
+try {
+
+await navigator.clipboard.writeText(s);
+
+alert(
+'Backup copied successfully. Save it in WhatsApp or Notes.'
+);
+
+}
+catch (e) {
+
+$('#bdata').select();
+
+alert(
+'Text is selected. Copy it manually.'
+);
+
+}
+};
+
+$('#brest').onclick = () => {
+
+try {
+
+const d =
+JSON.parse($('#bdata').value);
+
+if (
+!Array.isArray(d.customers) ||
+!Array.isArray(d.orders)
+) throw 0;
+
+if (
+confirm(
+'Your current data will be replaced. Restore backup?'
+)
+) {
+
+db = {
+shop: d.shop || '',
+customers: d.customers,
+orders: d.orders
+};
+
+save();
+
+go('backup');
+
+alert('Backup restored successfully.');
+}
+
+}
+catch (e) {
+
+alert('Invalid backup text.');
+
+}
+};
+
+go('home');
+
+</script>
+</body>
+</html>
